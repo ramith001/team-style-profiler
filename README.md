@@ -36,7 +36,7 @@ World Football Elo Ratings  --->  elo_loader.py (pre-tournament strength, by tie
                                               (stratification + combined typology)
 ```
 
-Three tournaments processed end to end: 2022 FIFA World Cup (64 matches), UEFA Euro 2024 (51 matches), Copa América 2024 (32 matches). 294 team-match observations in total, with 52 teams carrying enough matches across enough strength tiers to support a full combined typology.
+Three tournaments processed end to end: 2022 FIFA World Cup (64 matches), UEFA Euro 2024 (51 matches), Copa América 2024 (32 matches). 294 team-match observations in total. 52 teams have three or more matches; 35 of those have both an Elite and a Weak opponent and so get a combined typology, the rest are labelled "Insufficient data".
 
 ---
 
@@ -44,7 +44,7 @@ Three tournaments processed end to end: 2022 FIFA World Cup (64 matches), UEFA E
 
 **Opponent strength tiering.** Each team's Elo rating immediately before a tournament's start is pulled from the historical Elo dataset, then classified into a quartile based tier (Elite, Strong, Moderate, Weak) relative to that specific tournament's field. This means strength is always relative to the actual competition a team is in, not a global, context-free number.
 
-**Per-match metrics.** Reusing the PPDA and defensive line height calculations already built for the Tactical Verdict Engine, every team's performance in every match is reduced to two numbers: how aggressively they pressed, and how high their defensive line sat.
+**Per-match metrics.** Reusing the PPDA and defensive line height calculations from the Tactical Verdict Engine (with the corrections described below), every team's performance in every match is reduced to two numbers: how aggressively they pressed, and how high their defensive line sat.
 
 **Stratification.** For each team, matches are grouped by opponent strength tier, and each tier's average is compared back to that team's own overall tournament average, not to a generic league average. A 20% swing threshold (relative to the team's own mean) separates a meaningful tactical shift from normal match to match noise.
 
@@ -54,13 +54,32 @@ Three tournaments processed end to end: 2022 FIFA World Cup (64 matches), UEFA E
 
 ## Key Findings
 
-**Japan and Senegal: Compact aggressive block vs elite.** Both nations dropped into a notably deeper defensive line against Elite opposition while simultaneously pressing harder once the ball entered their own third. This is not a passive defensive identity, it is a deliberately compact, ambush style approach, and it matches the widely remembered story of Japan's wins over Germany and Spain in the 2022 World Cup: sit deep, then press intensely and counter.
+These replace an earlier set of findings that were computed with a broken PPDA (see "Corrections" below). Re-running the full stratification with the corrected PPDA, and checking each earlier finding against it:
 
-**Uruguay: False High Line risk vs elite.** Uruguay's defensive line was unusually higher against Elite opposition specifically, while their pressing intensity simultaneously dropped. A high defensive line combined with passive pressing is precisely the structural vulnerability the Tactical Verdict Engine's False High Line detector was built to flag at the individual match level. This stratified team level profiling surfaced the same risk pattern independently, across a whole tournament's worth of matches, providing a direct link between the two projects.
+| Earlier finding | With corrected PPDA | Verdict |
+|---|---|---|
+| Japan, Senegal: compact aggressive block vs elite | Japan "Fully conservative vs elite", Senegal "Shape adapts, effort doesn't". Both have one Elite match, so the Elite figure is a single game (Japan PPDA 29.0 vs elite, 9.0 vs weak) | Disappears |
+| Spain, Portugal: compact aggressive block vs elite, at scale | Spain "Same shape, lower work-rate vs elite", Portugal "Fully conservative vs elite". The press direction reversed (PPDA higher vs elite, so less pressing, not more) | Disappears, reversed |
+| Uruguay: False High Line risk vs elite | "Tactically stable". The committed code never produced the False High Line label for Uruguay, even before the fix | Disappears (did not reproduce even before the fix) |
+| Argentina: tactically stable | "Same shape, lower work-rate vs elite" (PPDA 18.6 vs elite against 12.3 vs weak, defensive line unchanged) | Shifts |
+| France, England: same shape, harder work-rate vs elite | Both "Same shape, lower work-rate vs elite". The committed code gave "Tactically stable" for both | Shifts, and reversed |
 
-**Spain and Portugal: Compact aggressive block vs elite, at scale.** With the largest sample sizes in the dataset (11 and 10 matches respectively across two tournaments), both nations showed the same compact-but-intense pattern as Japan and Senegal, suggesting this may be a more common approach against elite opposition than the high press, possession dominant identity often assumed of teams at this level.
+Across all 35 teams with both Elite and Weak matches, the corrected PPDA gives 19 "Same shape, lower work-rate vs elite", 9 "Tactically stable", 3 "Fully conservative", 2 "Same shape, harder work-rate", and one each of "Compact aggressive block" and "Shape adapts, effort doesn't". The dominant pattern, higher PPDA against elite opponents, is plausible mechanically: PPDA counts opponent passes, and elite sides pass more, so it rises against them without the team doing anything differently. It should not be read as a deliberate "sit off the best teams" plan.
 
-**Argentina, France, England, Netherlands: Tactically stable or work-rate scaling.** Argentina remained "Tactically stable" across 13 matches spanning two tournaments, the same conclusion held with one tournament's data alone, a good sign of a genuinely repeatable signal rather than noise. France and England both showed "Same shape, harder work-rate vs elite," holding the same defensive line height regardless of opponent, but pressing visibly harder against the best teams specifically.
+**These typologies are mostly not distinguishable from noise.** `scripts/typology_stability.py` shuffles each team's opponent-tier labels across its own matches and re-applies the same 20% rule. With the corrected PPDA, 71% of teams are labelled as shifting their press between Elite and Weak opponents, against 66% expected from shuffled tiers (95th percentile 77%); for defensive line, 14% against 10% (95th percentile 17%). Most teams have one to three matches per tier, so a 20% swing is easily a single-match effect. The honest summary is that this dataset does not support strong claims about how individual teams change their press by opponent strength. The method is a framework for when more matches per tier exist (for example club seasons), not a set of established team findings.
+
+---
+
+## Corrections
+
+An earlier version of this project reused pre-fix code from the Tactical Verdict Engine. Verified against real data (the 2022 final, match 3869685) and fixed:
+
+- **Tackles were never counted.** StatsBomb has no "Tackle" event type; tackles are `Duel` events with `duel_type == "Tackle"`. The mapping for `"Tackle"` never matched, and Duel was not in the defensive-action list. Tackle duels now map to Opta type 7.
+- **Pressure dominated the PPDA denominator.** Pressure (type 49, previously mislabelled "Ball Recovery") is no longer counted; PPDA uses tackles, interceptions and fouls.
+- **Two teams' coordinate frames were mixed.** StatsBomb records each team's events in its own attacking frame, so `x <= 50` applied to both teams selected different physical areas. PPDA now takes opponent completed passes in the opponent's own two thirds over the pressing team's defensive actions in the opposition's two thirds, each in the team's own frame. Other detectors keep the attacking-frame coordinates they were written for.
+- **Every pass was recorded as incomplete.** The completed flag tested `is None` against the NaN that `sb.events()` returns.
+- **PPDA thresholds recalibrated.** The old 2.5 / 4.4 cut-offs belong to the old metric and would label every team-match "Passive". The corrected metric has median 13.9 (5th to 95th percentile 6.8 to 29.8). Cut-offs are now Aggressive < 9 and Passive >= 20, giving 19% / 60% / 21% over the 294 team-matches (Aggressive: Copa 39%, World Cup 16%, Euro 11%). They are percentile-based on these three tournaments, not an absolute standard, and are the same as in the Tactical Verdict Engine. The corrected PPDA has a Spearman rank correlation of 0.95 with an independently written standard-definition PPDA. (`scripts/calibrate_ppda.py`.) Note that the stratification itself compares each team with its own average and does not depend on the absolute cut-offs.
+- 2022 final, Argentina / France: PPDA 1.95 / 2.57 before, 7.89 / 10.45 after.
 
 ---
 
@@ -68,9 +87,22 @@ Three tournaments processed end to end: 2022 FIFA World Cup (64 matches), UEFA E
 
 **Sample size varies considerably by team.** Teams eliminated early in their tournament, or who only faced a narrow band of opponent strength, do not have enough data for a reliable typology and are explicitly labelled "Insufficient data" rather than forced into a guess.
 
+**Small samples and PPDA's dependence on the opponent.** Most teams have one to three matches in each tier, and PPDA rises mechanically against teams that pass more. See the stability check under Key Findings.
+
 **Home advantage is not yet incorporated.** A genuine home and away split is not meaningful for most international tournaments since every team except the host is technically "away." A more accurate proxy, crowd composition by team allegiance, was investigated and found not to exist in any published or scrapeable form, not even for completed tournaments, partly because FIFA itself has acknowledged it does not reliably track which fans are seated where, particularly at the 2026 World Cup, which has no fan segregation. A travel distance and historical fanbase size proxy was considered as a fallback but not yet implemented.
 
 **The transfer backtest validation method (also Will's suggestion) is not applicable here.** Validating a style classification system by checking whether real player transfers between tactically similar versus dissimilar teams correlate with transfer success is a genuinely strong idea, but it requires club level data, and current club season data for the specific clubs and players involved is not available through StatsBomb's free open data, that tier is their core paid commercial product. This remains a natural extension if club level data becomes accessible.
+
+---
+
+## Reproducing
+
+```
+python run_full_stratification.py        # team_matches.csv, combined_profiles.csv in results/
+python scripts/calibrate_ppda.py         # PPDA calibration and validation
+python scripts/typology_stability.py     # real labels vs shuffled-tier null
+python -m pytest tests                   # mapping and PPDA regression tests
+```
 
 ---
 
