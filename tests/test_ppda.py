@@ -68,3 +68,10 @@ def test_zone_filters_and_incomplete_passes():
 def test_classifier_boundaries_are_ordered():
     assert classify_ppda(1.0) == "Aggressive Press"
     assert classify_ppda(1000.0) == "Passive / Low Press"
+
+
+def test_classifier_cutoffs_9_and_20():
+    assert classify_ppda(8.99) == "Aggressive Press"
+    assert classify_ppda(9.0) == "Moderate Press"
+    assert classify_ppda(19.99) == "Moderate Press"
+    assert classify_ppda(20.0) == "Passive / Low Press"

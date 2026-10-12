@@ -60,9 +60,15 @@ THRESHOLDS = {
     "low_block_max":     37.5,
     "high_line_min":     50.0,
 
-    # PPDA (passes per defensive action) — same regardless of coordinate system
-    "ppda_aggressive":    2.5,
-    "ppda_passive":       4.4,
+    # PPDA (opponent passes per defensive action), corrected definition (see
+    # compute_ppda). Percentile-based on the three tournaments (294 team-matches):
+    # Aggressive < 9 is roughly the lowest fifth, Passive >= 20 the highest fifth.
+    # These are the same cut-offs as sideline-engine, whose calibration is on the
+    # same matches and the same definition; scripts/calibrate_ppda.py shows the
+    # derivation. The old 2.5 / 4.4 belonged to the pre-fix metric (~1-4 range) and
+    # would label every team-match "Passive / Low Press".
+    "ppda_aggressive":    9.0,
+    "ppda_passive":      20.0,
 
     # Compactness (IQR of defensive event x-coordinates, Opta space)
     "compact_max":       30.8,   # was 37u / 1.2
@@ -236,7 +242,8 @@ def get_progressive_passes(df: pd.DataFrame, team: str) -> pd.DataFrame:
 def detect_false_high_line(df: pd.DataFrame, team: str) -> dict:
     """
     Detects False High Line: high defensive line + passive/moderate press.
-    In Opta space: avg defensive x > 50.0u AND PPDA > 4.4
+    In Opta space: avg defensive x > 50.0u AND press class not Aggressive
+    (PPDA >= THRESHOLDS["ppda_aggressive"]).
     """
     def_events = get_defensive_events(df, team, exclude_gk=True)
     if def_events.empty:
