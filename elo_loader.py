@@ -44,6 +44,9 @@ def load_elo_data(csv_path: str = "eloratings.csv") -> pd.DataFrame:
 # Add to this dict whenever a new mismatch is found.
 NAME_MAPPING = {
     "Czech Republic": "Czechia",
+    "Côte d'Ivoire": "Ivory Coast",
+    "Congo DR": "Democratic Republic of Congo",
+    "Cape Verde Islands": "Cape Verde",
 }
 
 
