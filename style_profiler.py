@@ -48,13 +48,14 @@ COMPETITIONS = {
 
 # ── Per-match metric extraction ──────────────────────────────────────────────────
 
-def extract_match_metrics(match_id: int) -> list:
+def extract_match_metrics(match_id: int, opta_df: pd.DataFrame = None) -> list:
     """
     Run a single match through the schema mapper and tactical engine,
-    returning per-team metrics for that match.
+    returning per-team metrics for that match. Pass `opta_df` (already mapped)
+    to avoid a network fetch.
     """
     try:
-        df = load_match_as_opta(match_id)
+        df = opta_df if opta_df is not None else load_match_as_opta(match_id)
     except Exception as e:
         print(f"  Skipping match {match_id}: {e}")
         return []
