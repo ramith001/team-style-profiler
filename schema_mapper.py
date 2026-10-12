@@ -10,15 +10,15 @@ ready to accept a live Opta feed with zero pipeline changes.
 
 Opta MA3 Event Type IDs used:
     1  = Pass
-    4  = Tackle (Foul)
-    7  = Tackle (won)
+    4  = Foul committed
+    7  = Tackle (StatsBomb Duel with duel_type == "Tackle")
     8  = Interception
-    12 = Clearance
+    12 = Clearance / Block
     13 = Miss (shot off target)
     15 = Attempt Saved (shot on target)
     16 = Post (shot hits post)
-    44 = Aerial
-    49 = Ball Recovery
+    44 = Other duels (lost aerials; StatsBomb "Duel" that is not a tackle)
+    49 = Pressure (no Opta equivalent; NOT a Ball Recovery)
     61 = Keeper Pick-Up
 
 Opta coordinate system:
@@ -29,11 +29,20 @@ Opta coordinate system:
 StatsBomb coordinate system:
     - Pitch dimensions: 120 x 80
     - Origin: bottom-left
-    - Attacking direction: left to right
+    - Attacking direction: left to right, FOR EACH TEAM. StatsBomb records every
+      team's events in that team's own attacking frame (its opponent's goal is
+      always x = 120), so the two teams' coordinates are mirror images of each
+      other, not one shared physical frame.
 
 Conversion:
     opta_x = (statsbomb_x / 120) * 100
     opta_y = (statsbomb_y / 80) * 100
+
+The conversion is a pure rescale and deliberately keeps each team in its own
+attacking frame: every detector that reads "x" (defensive line, progressive
+passes, danger corridor, distance to goal) assumes the team attacks toward
+x = 100. Anything that compares the two teams' positions (PPDA) must account for
+the frames explicitly; see tactical_engine.compute_ppda.
 """
 
 import pandas as pd
@@ -56,13 +65,12 @@ OPTA_GOAL = (100.0, 50.0)
 # StatsBomb to Opta event type mapping
 SB_TO_OPTA_EVENT_TYPE = {
     "Pass":          1,
-    "Pressure":      49,   # closest equivalent = Ball Recovery / pressure
-    "Tackle":        7,
+    "Pressure":      49,   # Opta has no pressure event; kept as its own type
     "Interception":  8,
     "Clearance":     12,
     "Block":         12,   # mapped to clearance as closest
     "Foul Committed": 4,
-    "Duel":          44,
+    "Duel":          44,   # refined below: duel_type == "Tackle" -> 7
     "Shot":          15,   # default; refined below by outcome
     "Carry":         None, # Opta does not have carry events
     "Ball Receipt*": None, # Opta does not have ball receipt
@@ -133,6 +141,15 @@ def map_statsbomb_to_opta(df: pd.DataFrame) -> pd.DataFrame:
         if opta_type is None:
             continue
 
+        # StatsBomb has no "Tackle" event type: tackles are Duel rows with
+        # duel_type == "Tackle". Everything else (lost aerials) stays 44.
+        duel_type = None
+        if event_type_sb == "Duel":
+            duel_type = row.get("duel_type", None)
+            if isinstance(duel_type, dict):
+                duel_type = duel_type.get("name", None)
+            opta_type = 7 if duel_type == "Tackle" else 44
+
         # Refine shot type by outcome
         if event_type_sb == "Shot":
             outcome = row.get("shot_outcome", None)
@@ -160,7 +177,9 @@ def map_statsbomb_to_opta(df: pd.DataFrame) -> pd.DataFrame:
         pass_outcome = row.get("pass_outcome", None)
         if isinstance(pass_outcome, dict):
             pass_outcome = pass_outcome.get("name", None)
-        pass_success = 1 if pass_outcome is None else 0  # None = completed in StatsBomb
+        # No pass_outcome = completed in StatsBomb. sb.events() gives NaN (not None)
+        # for those rows, so test with pd.isna or every pass reads as incomplete.
+        pass_success = 1 if pd.isna(pass_outcome) else 0
 
         # Team
         team = row.get("team", None)
@@ -191,6 +210,7 @@ def map_statsbomb_to_opta(df: pd.DataFrame) -> pd.DataFrame:
             # ── Opta MA3 standard fields ──
             "opta_event_type_id":   opta_type,
             "opta_event_type_name": event_type_sb,
+            "duel_type":            duel_type,
             "period":               period_opta,
             "period_id":            int(period_sb),
             "minute":               row.get("minute", None),

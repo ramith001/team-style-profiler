@@ -20,11 +20,12 @@ Coordinate system: Opta 100x100 pitch.
 
 Opta Event Type IDs used:
     1  = Pass
-    4  = Foul / Tackle
-    7  = Tackle (won)
+    4  = Foul committed
+    7  = Tackle (StatsBomb Duel with duel_type == "Tackle")
     8  = Interception
     12 = Clearance / Block
-    49 = Pressure (Ball Recovery)
+    44 = Other duels (lost aerials)
+    49 = Pressure (not a Ball Recovery)
 """
 
 import math
@@ -92,9 +93,27 @@ THRESHOLDS = {
     "clinical_gap_moderate": 7,
 }
 
-# Opta defensive action event type IDs
-OPTA_DEFENSIVE_TYPES = [4, 7, 8, 12, 49]
+# Opta event type IDs that locate a team's defending (defensive line, compactness).
+# 44 (non-tackle duels, i.e. lost aerials) is included, as in the Tactical Verdict
+# Engine; 7 is tackle duels.
+OPTA_DEFENSIVE_TYPES = [4, 7, 8, 12, 44, 49]
 OPTA_PASS_TYPE       = 1
+
+# PPDA denominator: tackles (7), interceptions (8) and fouls committed (4).
+# Pressure (49) is NOT counted: it is an off-the-ball event that happens many
+# times per possession, so counting it measures how often a team is recorded
+# pressing, not how much it disrupts passing.
+PPDA_ACTION_TYPES = [4, 7, 8]
+
+# PPDA zones. Each team's events are in its own attacking frame (x = 100 is the
+# opponent's goal), so one zone per team, defined from that team's own frame:
+#   opponent passes counted where the OPPONENT is in its own 66.7% of the pitch
+#   (x <= 66.7 in the opponent's frame), pressing actions where the PRESSING team
+#   is in the opposition's 66.7% (x >= 33.3 in its own frame). Both select the
+#   same physical region: the area up to two thirds of the way from the
+#   opponent's goal line.
+PPDA_PASS_MAX_X  = 100 * 80 / 120   # StatsBomb x <= 80 of 120
+PPDA_PRESS_MIN_X = 100 * 40 / 120   # StatsBomb x >= 40 of 120
 
 # ── Helper functions ───────────────────────────────────────────────────────────
 
@@ -109,29 +128,31 @@ def is_goalkeeper(row) -> bool:
 
 def compute_ppda(df: pd.DataFrame, pressing_team: str) -> float:
     """
-    PPDA = opponent passes in own half / pressing team's defensive actions
-    Uses Opta event type IDs.
-    Denominator: Tackle (7) + Interception (8) + Pressure (49) + Foul (4)
+    PPDA = opponent completed passes in their own 66.7% of the pitch /
+           pressing team's tackles + interceptions + fouls in the opposition's 66.7%.
+    Each team's x is in its own attacking frame (see PPDA_* constants above).
+    Penalty-shootout events (period 5) are excluded.
     """
     teams = get_teams(df)
     opponent = next((t for t in teams if t != pressing_team), None)
     if not opponent:
         return float("inf")
 
-    # Opponent passes in their own half (x < 50 = own half in Opta)
+    # Opponent completed passes while the opponent is in its own defensive two thirds
     opp_passes = df[
         (df["team"] == opponent) &
         (df["opta_event_type_id"] == OPTA_PASS_TYPE) &
+        (df["outcome"] == 1) &
         (~df["period_id"].isin([5])) &
-        (df["x"] <= 50)
+        (df["x"] <= PPDA_PASS_MAX_X)
     ]
 
-    # Pressing team defensive actions
+    # Pressing team's defensive actions while it is in the opposition's two thirds
     press_actions = df[
         (df["team"] == pressing_team) &
-        (df["opta_event_type_id"].isin(OPTA_DEFENSIVE_TYPES)) &
+        (df["opta_event_type_id"].isin(PPDA_ACTION_TYPES)) &
         (~df["period_id"].isin([5])) &
-        (df["x"] <= 50)
+        (df["x"] >= PPDA_PRESS_MIN_X)
     ]
 
     if len(press_actions) == 0:
