@@ -25,9 +25,12 @@ from style_profiler import (build_all_combined_profiles, extract_match_metrics,
                             tag_opponent_strength)
 
 COMPETITIONS = {
-    "wc2022":   {"competition_id": 43,  "season_id": 106, "cutoff_date": "2022-11-20"},
-    "euro2024": {"competition_id": 55,  "season_id": 282, "cutoff_date": "2024-06-14"},
-    "copa2024": {"competition_id": 223, "season_id": 282, "cutoff_date": "2024-06-20"},
+    "wc2022":    {"competition_id": 43,   "season_id": 106, "cutoff_date": "2022-11-20"},
+    "euro2024":  {"competition_id": 55,   "season_id": 282, "cutoff_date": "2024-06-14"},
+    "copa2024":  {"competition_id": 223,  "season_id": 282, "cutoff_date": "2024-06-20"},
+    "wc2018":    {"competition_id": 43,   "season_id": 3,   "cutoff_date": "2018-06-14"},
+    "euro2020":  {"competition_id": 55,   "season_id": 43,  "cutoff_date": "2021-06-11"},
+    "afcon2023": {"competition_id": 1267, "season_id": 107, "cutoff_date": "2024-01-13"},
 }
 
 

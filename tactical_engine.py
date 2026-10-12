@@ -132,17 +132,21 @@ def is_goalkeeper(row) -> bool:
         return "Goalkeeper" in pos or "GK" in pos
     return False
 
-def compute_ppda(df: pd.DataFrame, pressing_team: str) -> float:
+def compute_ppda_components(df: pd.DataFrame, pressing_team: str) -> dict:
     """
-    PPDA = opponent completed passes in their own 66.7% of the pitch /
-           pressing team's tackles + interceptions + fouls in the opposition's 66.7%.
+    The two raw counts behind PPDA, exposed separately so the possession-volume
+    side (opp_passes) can be checked as a confound against the pressing side
+    (press_actions) rather than only ever seen as their ratio.
+
+    opp_passes  = opponent completed passes in their own 66.7% of the pitch
+    press_actions = pressing team's tackles + interceptions + fouls in the opposition's 66.7%
     Each team's x is in its own attacking frame (see PPDA_* constants above).
     Penalty-shootout events (period 5) are excluded.
     """
     teams = get_teams(df)
     opponent = next((t for t in teams if t != pressing_team), None)
     if not opponent:
-        return float("inf")
+        return {"opp_passes": 0, "press_actions": 0, "ppda": float("inf")}
 
     # Opponent completed passes while the opponent is in its own defensive two thirds
     opp_passes = df[
@@ -161,10 +165,18 @@ def compute_ppda(df: pd.DataFrame, pressing_team: str) -> float:
         (df["x"] >= PPDA_PRESS_MIN_X)
     ]
 
-    if len(press_actions) == 0:
-        return float("inf")
+    n_opp_passes, n_press_actions = len(opp_passes), len(press_actions)
+    ppda = round(n_opp_passes / n_press_actions, 2) if n_press_actions else float("inf")
+    return {"opp_passes": n_opp_passes, "press_actions": n_press_actions, "ppda": ppda}
 
-    return round(len(opp_passes) / len(press_actions), 2)
+
+def compute_ppda(df: pd.DataFrame, pressing_team: str) -> float:
+    """
+    PPDA = opponent completed passes in their own 66.7% of the pitch /
+           pressing team's tackles + interceptions + fouls in the opposition's 66.7%.
+    See compute_ppda_components for the two counts this ratio is built from.
+    """
+    return compute_ppda_components(df, pressing_team)["ppda"]
 
 def classify_ppda(ppda: float) -> str:
     if ppda < THRESHOLDS["ppda_aggressive"]:
