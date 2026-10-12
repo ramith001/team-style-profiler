@@ -70,6 +70,18 @@ Across all 35 teams with both Elite and Weak matches, the corrected PPDA gives 1
 
 ---
 
+## Does Opponent Strength Have a Real Effect? A Pooled Mixed-Effects Model
+
+The per-team typology test above is underpowered by design, most teams have three to five matches split across up to four tiers, so a single team's 20% swing is close to indistinguishable from noise. That's the wrong question for this dataset. The right question is whether, pooling all 294 team-matches and letting each team keep its own baseline, pressing intensity and defensive line height move with opponent strength at the population level.
+
+`scripts/mixed_effects_pressing.py` fits two linear mixed-effects models: log(PPDA) and defensive line height, each regressed on opponent tier (Weak as reference) with team fit as a random intercept, so a team with nine matches doesn't outweigh one with three and each team's own general level is absorbed rather than competing with the tier effect. Both effects are real and monotonic. PPDA rises from Weak through Moderate, Strong and Elite (coefficients 0.224, 0.354, 0.420 in log units; p = 0.0017, p < 0.0001, p < 0.0001), meaning PPDA is about 52% higher against Elite opponents than Weak ones on average (exp(0.420) = 1.52), consistent with markedly less intense pressing against the strongest teams. Defensive line height falls the same way, by 3.5, 3.7 and 4.4 units (on the 0-100 pitch scale, roughly 4 metres at the largest) against Moderate, Strong and Elite opponents respectively (all p < 0.0001). A likelihood-ratio test against a team-only null model confirms opponent tier meaningfully improves the fit for both outcomes (PPDA: chi2 = 42.4, df = 3, p = 3.2e-9; line height: chi2 = 34.7, df = 3, p = 1.4e-7).
+
+So the population-level effect is real and not subtle: international teams genuinely press less and sit deeper against stronger opposition, on average. It just isn't reliably detectable one team at a time with three to five matches each. The two results aren't in tension. A population-level mean shift with an intraclass correlation of 0.24-0.33 (most of the variance is match-to-match, not team identity) is exactly the kind of signal that survives pooling but gets swamped by noise in any single team's handful of matches. The per-team typology table is still a useful descriptive summary of each team's own matches, but it should be read that way, not as 35 independently validated findings.
+
+One caveat on the PPDA half of this: PPDA is opponent passes divided by defensive actions, so it also rises when the opponent simply passes more, which elite sides do. Part of the PPDA effect may therefore be possession volume rather than pressing intent; the defensive line result does not have that problem.
+
+---
+
 ## Corrections
 
 An earlier version of this project reused pre-fix code from the Tactical Verdict Engine. Verified against real data (the 2022 final, match 3869685) and fixed:
@@ -101,6 +113,7 @@ An earlier version of this project reused pre-fix code from the Tactical Verdict
 python run_full_stratification.py        # team_matches.csv, combined_profiles.csv in results/
 python scripts/calibrate_ppda.py         # PPDA calibration and validation
 python scripts/typology_stability.py     # real labels vs shuffled-tier null
+python scripts/mixed_effects_pressing.py # pooled population-level tier effect
 python -m pytest tests                   # mapping and PPDA regression tests
 ```
 
@@ -109,7 +122,7 @@ python -m pytest tests                   # mapping and PPDA regression tests
 ## Stack
 
 - **Language**: Python 3.13
-- **Libraries**: pandas, numpy, statsbombpy
+- **Libraries**: pandas, numpy, statsbombpy, statsmodels, scipy
 - **Data sources**: StatsBomb open data (event coordinates), World Football Elo Ratings via eloratings.net (team strength)
 - **Built on**: schema_mapper.py and tactical_engine.py from the Tactical Verdict Engine project
 
