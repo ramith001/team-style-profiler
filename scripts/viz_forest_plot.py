@@ -117,7 +117,11 @@ def main():
     fig.text(0.01, -0.02,
               "Dot = coefficient, line = 95% CI, team fit as a random intercept. * p<.05  ** p<.01  *** p<.001",
               fontsize=9, color=MUTED, ha="left")
-    fig.tight_layout(rect=(0, 0.02, 1, 0.97))
+    fig.text(0.01, -0.07,
+              "Note: the Elite-tier PPDA shift is largely mechanical (opponents keep the ball in that zone "
+              "more); see the possession-volume decomposition below for the behavioural-vs-mechanical split.",
+              fontsize=9, color=MUTED, ha="left", style="italic")
+    fig.tight_layout(rect=(0, 0.04, 1, 0.97))
 
     out_path = out_dir / "forest_plot_tier_effects.png"
     fig.savefig(out_path, dpi=180, facecolor=SURFACE, bbox_inches="tight")
