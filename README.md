@@ -88,6 +88,8 @@ PPDA is opponent completed passes (in their own defensive two-thirds) divided by
 
 Opponent tier has a strong, monotonic effect on how many passes the opponent completes in that zone (log(opp_passes) ~ tier: Strong +0.231, Elite +0.380, both p < 0.0001; Moderate +0.028, not significant), confirming elite sides really do have the ball more there. It has a smaller, non-monotonic effect on the pressing team's own raw defensive actions in the opposition's third (log(press_actions) ~ tier: Moderate -0.134 and Strong -0.082, both significant; Elite -0.039, p = 0.24, not significant). Adding opponent pass volume into the PPDA model directly as a covariate confirms the split: the Moderate-tier PPDA effect survives almost unchanged (0.135, p = 0.0002) and the Strong-tier effect shrinks but holds (0.088, p = 0.0145), while the Elite-tier effect collapses from 0.404 to 0.048 and loses significance entirely (p = 0.19).
 
+![Before/after PPDA tier coefficients, with and without controlling for opponent pass volume](results/figures/possession_confound.png)
+
 So the finding isn't uniform across tiers. Against Moderate and Strong opponents, teams do genuinely commit fewer raw defensive actions in the opposition's third, a real, if modest, drop in work-rate. Against Elite opponents specifically, the large PPDA rise is mostly mechanical: elite sides keep the ball in that zone more, and the pressing team's own defensive activity there barely changes. "Teams press less against the best teams" is the wrong headline for the Elite tier; "teams have less of the ball to press against the best teams, and otherwise keep roughly their usual work-rate" is closer to what the data shows. The defensive line result doesn't have this problem, since line height isn't built from the opponent's output at all.
 
 ---
@@ -125,6 +127,7 @@ python scripts/calibrate_ppda.py         # PPDA calibration and validation
 python scripts/typology_stability.py     # real labels vs shuffled-tier null
 python scripts/mixed_effects_pressing.py # pooled population-level tier effect
 python scripts/possession_confound.py    # PPDA decomposed: pressing vs. opponent pass volume
+python scripts/viz_possession_confound.py # before/after figure for the possession-volume decomposition
 python -m pytest tests                   # mapping and PPDA regression tests
 ```
 
