@@ -50,6 +50,8 @@ Six tournaments processed end to end: 2022 and 2018 FIFA World Cups (64 matches 
 
 **Combined typology.** Rather than reporting PPDA and defensive line shifts separately, the two dimensions are crossed into a single descriptive pattern. This is where the more interesting findings emerged.
 
+![Dataset overview: team-matches per tournament and per opponent-strength tier](results/figures/dataset_overview.png)
+
 ---
 
 ## Key Findings
@@ -123,6 +125,7 @@ An earlier version of this project reused pre-fix code from the Tactical Verdict
 
 ```
 python run_full_stratification.py        # team_matches.csv, combined_profiles.csv in results/
+python scripts/viz_dataset_overview.py   # dataset overview: tournaments, teams, tier distribution
 python scripts/calibrate_ppda.py         # PPDA calibration and validation
 python scripts/typology_stability.py     # real labels vs shuffled-tier null
 python scripts/mixed_effects_pressing.py # pooled population-level tier effect
