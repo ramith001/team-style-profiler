@@ -123,6 +123,8 @@ An earlier version of this project reused pre-fix code from the Tactical Verdict
 
 **Home advantage is not yet incorporated.** A genuine home and away split is not meaningful for most international tournaments since every team except the host is technically "away." A more accurate proxy, crowd composition by team allegiance, was investigated and found not to exist in any published or scrapeable form, not even for completed tournaments, partly because FIFA itself has acknowledged it does not reliably track which fans are seated where, particularly at the 2026 World Cup, which has no fan segregation. A travel distance and historical fanbase size proxy was considered as a fallback but not yet implemented.
 
+**A host-nation sensitivity check finds no sign that hosts drive the tier effect, but it is a weak test.** `scripts/host_sensitivity.py` flags each tournament host's own matches (Qatar 2022, Russia 2018, Germany at Euro 2024, Côte d'Ivoire at AFCON 2023, and the United States at Copa América 2024, which also took part as a participant) and refits the pooled models with a host covariate and with host matches dropped. That is 23 of 628 team-matches , spread across tiers as 5 Weak, 5 Moderate, 6 Strong and 7 Elite. Euro 2020 is left unflagged: it had no single host (11 countries), and England's Wembley matches would need venue data not carried in `team_matches.csv`. The host covariate is not significant for either outcome (PPDA +0.077, p = 0.50; line height -0.065, p = 0.96), and the tier coefficients barely move: PPDA Moderate, Strong, Elite go from 0.149, 0.300, 0.404 to 0.161, 0.302, 0.417 with hosts excluded, and line height from -2.8, -3.7, -4.9 units to -2.9, -3.7, -4.9 (all p < 0.0001 for Strong and Elite and for the line-height effects, p = 0.0013 for PPDA Moderate). The host sample is small, about one team's worth of matches per included tournament, so this can rule out a large host confound but not a subtle one, and it is not a substitute for the home-versus-crowd proxy above.
+
 **The transfer backtest validation method (also Will's suggestion) is not applicable here.** Validating a style classification system by checking whether real player transfers between tactically similar versus dissimilar teams correlate with transfer success is a genuinely strong idea, but it requires club level data, and current club season data for the specific clubs and players involved is not available through StatsBomb's free open data, that tier is their core paid commercial product. This remains a natural extension if club level data becomes accessible.
 
 ---
@@ -139,6 +141,7 @@ python scripts/possession_confound.py    # PPDA decomposed: pressing vs. opponen
 python scripts/viz_possession_confound.py # before/after figure for the possession-volume decomposition
 python scripts/team_shrinkage.py        # per-team empirical-Bayes Elite-vs-Weak effects, team_shrinkage.csv
 python scripts/viz_team_shrinkage.py    # raw vs. shrunken per-team effects
+python scripts/host_sensitivity.py       # tier effect with a host covariate and with host matches excluded
 python -m pytest tests                   # mapping and PPDA regression tests
 ```
 
