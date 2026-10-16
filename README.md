@@ -6,6 +6,8 @@
 
 ## Overview
 
+A narrative walk-through of the argument, built around the four figures, is in [CASE_STUDY.md](CASE_STUDY.md).
+
 Most tactical analysis treats a team's playing style as a single, fixed number, average PPDA across a tournament, average defensive line height across a season. This project starts from a different premise, suggested directly by Will Thomson (Principal Data Scientist, Leeds United, formerly Head of Soccer Research at StatsBomb): a team's tactical identity often changes depending on the opponent, and that variation is itself the interesting signal.
 
 This project stratifies pressing intensity and defensive line height by opponent strength across six full international tournaments, then classifies each team into a typology describing how its approach shifts, or doesn't, against elite opposition versus weaker sides.
